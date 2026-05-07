@@ -1,8 +1,7 @@
-"use client"
+﻿"use client"
 
 import { HttpTypes } from "@medusajs/types"
 import { startTransition, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react"
-import { flushSync } from "react-dom"
 import { LanguageContext, UI, type Lang } from "@lib/i18n"
 import { addToCart, deleteLineItem, retrieveCartFresh } from "@lib/data/cart"
 import { sortProducts } from "@lib/util/sort-tires"
@@ -503,24 +502,21 @@ export default function FlowShell({
     previousViewRef.current = view
 
     const frame = window.requestAnimationFrame(() => {
-      // View changes are state-driven and should land immediately.
-      // Smooth scrolling here leaves visible “extra roll” when entering
-      // checkout/results and when returning after cart mutations.
       scrollToSection(view, "auto")
     })
 
     return () => window.cancelAnimationFrame(frame)
   }, [scrollToSection, showCheckoutSection, showResultsSection, view])
 
-  // When products finish loading (skeletons → real cards), the results section
-  // height changes. If checkout was requested while products were still loading,
-  // the scroll target moved — re-fire the scroll to land correctly.
+  // Re-anchor to checkout whenever the layout might have shifted under us:
+  // (a) products finish loading (skeletons → real cards changes results section height)
+  // (b) cart finishes loading (first-visit cart creation makes checkout panel grow)
   useEffect(() => {
-    if (view === "checkout" && showCheckoutSection && !isLoading) {
+    if (view === "checkout" && showCheckoutSection && !isLoading && !cartLoading) {
       const frame = window.requestAnimationFrame(() => scrollToSection("checkout", "auto"))
       return () => window.cancelAnimationFrame(frame)
     }
-  }, [isLoading, view, showCheckoutSection, scrollToSection])
+  }, [isLoading, cartLoading, view, showCheckoutSection, scrollToSection])
 
   useEffect(() => {
     const surface = surfaceRef.current
@@ -609,16 +605,7 @@ export default function FlowShell({
 
   const handleSortChange = useCallback((next: SortKey) => {
     setPinRecommendations(false)
-    const doc = typeof document !== "undefined" ? (document as Document & { startViewTransition?: (cb: () => void) => void }) : null
-    if (doc?.startViewTransition) {
-      doc.startViewTransition(() => {
-        flushSync(() => {
-          setActiveSort(next)
-        })
-      })
-    } else {
-      setActiveSort(next)
-    }
+    setActiveSort(next)
   }, [])
   const displayCount = isLoading ? knownCount : products.length
   const skeletonCount = getSkeletonCount(knownCount)
@@ -963,7 +950,7 @@ export default function FlowShell({
               <div
                 ref={surfaceRef}
                 className="flex-1 overflow-y-auto"
-                style={{ overscrollBehaviorY: "contain", scrollBehavior: "smooth" }}
+                style={{ overscrollBehaviorY: "contain" }}
               >
                 {appState.conflict === "dimension_conflict" && (
                   <div className="sticky top-0 z-20 border-b border-amber-300 bg-amber-50 px-4 py-3 text-sm">
