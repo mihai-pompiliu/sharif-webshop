@@ -512,6 +512,16 @@ export default function FlowShell({
     return () => window.cancelAnimationFrame(frame)
   }, [scrollToSection, showCheckoutSection, showResultsSection, view])
 
+  // When products finish loading (skeletons → real cards), the results section
+  // height changes. If checkout was requested while products were still loading,
+  // the scroll target moved — re-fire the scroll to land correctly.
+  useEffect(() => {
+    if (view === "checkout" && showCheckoutSection && !isLoading) {
+      const frame = window.requestAnimationFrame(() => scrollToSection("checkout", "auto"))
+      return () => window.cancelAnimationFrame(frame)
+    }
+  }, [isLoading, view, showCheckoutSection, scrollToSection])
+
   useEffect(() => {
     const surface = surfaceRef.current
 

@@ -162,6 +162,12 @@ export function reduceFlowShellState(
       }
     case "CART_UPDATED":
       if (!event.hasItems) {
+        // Don't reset navigation while a cart sync is in progress — the stale
+        // empty-cart response from a concurrent fetch should not undo the
+        // checkout navigation that was just dispatched.
+        if (state.cart === "syncing") {
+          return { ...state, cart: "empty" }
+        }
         return {
           ...state,
           cart: "empty",
